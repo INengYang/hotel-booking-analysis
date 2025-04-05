@@ -49,7 +49,7 @@ C --> D[业务建议]
 
 ### 不同客户类型的取消率
 <div align="center">
-  <img src="images/不同客户类型的取消率.png" width="800" alt="">
+  <img src="images/不同客户类型取消率.png" width="800">
   <br>
   <em>合同订单（Contract）和短期(Transient)订单取消率高</em>
 </div>
