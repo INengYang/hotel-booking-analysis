@@ -25,7 +25,7 @@ print("\n缺失值统计:\n", df.isnull().sum())
 
 # 替换缺失值
 # 构造映射字典
-nan_replacements = {"children:": 0.0, "country": "Unknown", "agent": 0, "company": 0}
+nan_replacements = {"children": 0.0, "country": "Unknown", "agent": 0, "company": 0}
 # 替换缺失项得到新数据
 df_cln = df.fillna(nan_replacements)
 
@@ -53,7 +53,7 @@ SELECT customer_type,
        SUM(is_canceled) AS canceled_bookings,
        SUM(is_canceled)*1.0 / COUNT(*) AS cancel_rate
 FROM df
-GROUP BY customer_type,hotel
+GROUP BY customer_type
 """
 cancel_by_customer_type = sqldf(sql, locals())
 
@@ -67,23 +67,43 @@ plt.xlabel('是否取消订单（0=未取消，1=取消）')
 plt.ylabel('提前预订天数')
 plt.show()
 
-# 分析4：月度预订量趋势
-df_cln['arrival_date_month'] = pd.to_datetime(
-    df_cln['arrival_date_year'].astype(str) + '-' + df_cln['arrival_date_month'],
-    format='%Y-%B'
+# 分析4：城市酒店 vs 度假酒店月度入住量对比
+monthly_data = df_cln.groupby(['arrival_date_month', 'hotel']).size().unstack()
+# 处理月份排序
+month_order = ["January", "February", "March", "April", "May", "June",
+              "July", "August", "September", "October", "November", "December"]
+monthly_data = monthly_data.reindex(month_order)
+
+year_factors = monthly_data.index.to_series().isin(['July', 'August']).replace({True: 3, False: 2})
+monthly_data = monthly_data.div(year_factors, axis=0)
+
+plot_data = monthly_data.reset_index().melt(
+    id_vars='arrival_date_month',
+    value_name='guests',
+    var_name='hotel_type'
 )
-monthly_bookings = df_cln.groupby('arrival_date_month')['hotel'].count()
-monthly_bookings.plot(kind='line', figsize=(12, 5), marker='o')
-plt.title('月度酒店预订量趋势')
+
+plt.figure(figsize=(12, 6))
+sns.lineplot(
+    x='arrival_date_month',
+    y='guests',
+    hue='hotel_type',
+    data=plot_data,
+    marker='o',
+    palette=['#1f77b4', '#ff7f0e']
+)
+plt.title('月度平均客流量对比（城市酒店 vs 度假酒店）')
 plt.xlabel('月份')
 plt.ylabel('预订量')
-plt.grid(True)
+plt.xticks(rotation=45)
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.tight_layout()
 plt.show()
 
 
 # 4. 业务建议总结
 print("""
-1. 团队订单（Group）取消率比个人订单高25%，建议对团队客户收取定金降低风险；
+1. 合同订单（Contract）和短期(Transient)订单取消率高，建议对这两类客户收取定金降低风险；
 2. 提前预订超过100天的订单取消率显著上升，可设置阶梯式退改政策；
-3. 7-8月为预订旺季，需提前协调房源与人力。
+3. 城市酒店在春季和秋季客人较多，度假酒店在六月到九月人数较少，在冬季两家酒店的客人最少。
 """)
